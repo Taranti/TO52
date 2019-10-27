@@ -17,11 +17,16 @@ import android.widget.Toast;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Random;
 import java.util.regex.Pattern;
 
+import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
@@ -43,6 +48,7 @@ public class EnterWord extends AppCompatActivity {
     private Speaker speaker;
     private TextView tv;
 
+    private Calendar calendar;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -75,7 +81,7 @@ public class EnterWord extends AppCompatActivity {
     View.OnClickListener readListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
-            speakOut();
+            doGetRequest();
         }
     };
 
@@ -92,12 +98,7 @@ public class EnterWord extends AppCompatActivity {
         }
     }
 
-    private void speakOut() {
-        if(!speaker.isSpeaking()) {
-            speaker.speak(readFile(R.raw.martin_luther_king));
-            speaker.pause(SHORT_DURATION);
-        }
-    }
+
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -107,7 +108,13 @@ public class EnterWord extends AppCompatActivity {
                 if (resultCode == RESULT_OK && null != data) {
                     ArrayList<String> buffer = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
                     String result = buffer.get(0);
-
+                    tv.setText("");
+                    tv.append(result);
+                    try {
+                        doPostRequest(result);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
                     Pattern ff = Pattern.compile("Final|fantasy");
                     if (ff.matcher(result).find()) {
                         try {
@@ -158,23 +165,8 @@ public class EnterWord extends AppCompatActivity {
         super.onStop();
     }
 
-    private String readFile(int rawfile) {
-        String result = new String();
-        try {
-            Resources res = getResources();
-            InputStream input_stream = res.openRawResource(rawfile);
+    private void doGetRequest() {
 
-            byte[] b = new byte[input_stream.available()];
-            input_stream.read(b);
-            result = new String(b);
-        } catch (Exception e) {
-            Log.e("readFile", e.getMessage());
-        }
-        result = doRequest();
-        return result;
-    }
-    private String doRequest() {
-        final String[] text = new String[1];
         Random r = new Random();
         int i1 = r.nextInt(7 - 1) + 1;
         String url ="https://calm-stream-70416.herokuapp.com/api/questions/"+i1;
@@ -186,8 +178,11 @@ public class EnterWord extends AppCompatActivity {
 
                     String question=response.getString("text");
                     tv.setText("");
-                    speaker.speak(question);
-                    tv.append(question);
+                    if(!speaker.isSpeaking()) {
+                        speaker.speak(question);
+                        tv.append(question);
+                        speaker.pause(SHORT_DURATION);
+                    }
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
@@ -200,7 +195,61 @@ public class EnterWord extends AppCompatActivity {
             }
         });
         ExampleRequestQueue.add(ExampleRequest);
-        return text[0];
+
     }
 
+    private void doPostRequest(final String answer) throws JSONException {
+
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
+        calendar = Calendar.getInstance();
+        final String date = dateFormat.format(calendar.getTime());
+        Random r = new Random();
+        final int questionID = r.nextInt(7 - 1) + 1;
+        final int patientID = r.nextInt(2 - 1) + 1;
+        JSONObject postparams = new JSONObject();
+        postparams.put("patient", String.valueOf(patientID));
+        postparams.put("question", String.valueOf(questionID));
+        postparams.put("answer",answer);
+        postparams.put("date",date);
+        String url ="https://calm-stream-70416.herokuapp.com/api/answers";
+        RequestQueue ExampleRequestQueue = Volley.newRequestQueue(this);
+        JsonObjectRequest ExampleRequest = new JsonObjectRequest(Request.Method.POST, url,postparams, new Response.Listener<JSONObject>() {
+            @Override
+            public void onResponse(JSONObject response) {
+
+
+                    String hello = "hello";
+
+
+            }
+
+
+        }, new Response.ErrorListener() { //Create an error listener to handle errors appropriately.
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                //This code is executed if there is an error.
+            }
+
+        }){
+        /*Override
+        protected Map<String, String> getParams()
+        {
+            Map<String, String> params = new HashMap<>();
+            // the POST parameters:
+            params.put("patient", String.valueOf(patientID));
+            params.put("question", String.valueOf(questionID));
+            params.put("answer",answer);
+            params.put("date",date);
+            return params;
+        }*/
+            @Override
+            public Map getHeaders()  {
+                HashMap headers = new HashMap();
+                headers.put("Content-Type", "application/x-www-form-urlencoded");
+                return headers;
+            }
+        };
+        ExampleRequestQueue.add(ExampleRequest);
+
+    }
 }
