@@ -2,5 +2,7 @@
     <string name="app_name">TO52</string>
     <string name="prompt_text">Reconnaissance vocale</string>
     <string name="read_text">Synthèse vocale</string>
+    <string name="load_in_phone">Charger les données localement</string>
+    <string name="print_offline">Afficher les données locales</string>
     <string name="my_app_id">to52-dmhyo</string>
 </resources>

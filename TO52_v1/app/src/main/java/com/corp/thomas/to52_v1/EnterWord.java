@@ -15,6 +15,12 @@ import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
@@ -43,7 +49,7 @@ public class EnterWord extends AppCompatActivity {
     private final int CHECK_CODE = 0x1;
     private final int SHORT_DURATION = 1000;
 
-    private Button launchPrompt, readText;
+    private Button launchPrompt, readText, loadInPhone, printLocal;
     private MediaPlayer player;
     private Speaker speaker;
     private TextView tv;
@@ -59,6 +65,13 @@ public class EnterWord extends AppCompatActivity {
 
         readText = (Button) findViewById(R.id.readText);
         readText.setOnClickListener(readListener);
+
+        loadInPhone = (Button) findViewById(R.id.loadInPhone);
+        loadInPhone.setOnClickListener(LoadInPhonListener);
+
+        printLocal = (Button) findViewById(R.id.printOffline);
+        printLocal.setOnClickListener(printLocalListener);
+
         tv = (TextView) findViewById(R.id.tv);
 
 
@@ -82,6 +95,20 @@ public class EnterWord extends AppCompatActivity {
         @Override
         public void onClick(View v) {
             doGetRequest();
+        }
+    };
+
+    View.OnClickListener LoadInPhonListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            doGetRequestForOfflineMode();
+        }
+    };
+
+    View.OnClickListener printLocalListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            printOfflineMode();
         }
     };
 
@@ -196,6 +223,69 @@ public class EnterWord extends AppCompatActivity {
         });
         ExampleRequestQueue.add(ExampleRequest);
 
+    }
+
+    private void doGetRequestForOfflineMode(){
+
+
+        final File f = new File(this.getFilesDir(),"offlineText");
+        Random r = new Random();
+        int i1 = r.nextInt(7 - 1) + 1;
+        String url ="https://calm-stream-70416.herokuapp.com/api/questions/"+i1;
+        RequestQueue ExampleRequestQueue = Volley.newRequestQueue(this);
+        JsonObjectRequest ExampleRequest = new JsonObjectRequest(Request.Method.GET, url,null, new Response.Listener<JSONObject>() {
+            @Override
+            public void onResponse(JSONObject response) {
+                try {
+
+                    String question=response.getString("text");
+                    tv.setText("");
+                    try {
+                        FileWriter fw = new FileWriter(f.getAbsoluteFile());
+                        BufferedWriter bw = new BufferedWriter(fw);
+                        bw.write("Question: ");
+                        bw.write(question);
+                        bw.close();
+                        tv.append(question);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+
+        }, new Response.ErrorListener() { //Create an error listener to handle errors appropriately.
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                //This code is executed if there is an error.
+            }
+        });
+        ExampleRequestQueue.add(ExampleRequest);
+
+    }
+
+    private void printOfflineMode(){
+
+        final File f = new File(this.getFilesDir(),"offlineText");
+        StringBuffer output = new StringBuffer();
+        FileReader fr = null;
+        tv.setText("");
+        try {
+            fr = new FileReader(f.getAbsolutePath());
+            BufferedReader br = new BufferedReader(fr);
+            String line = "";
+            while ((line = br.readLine()) != null){
+                output.append(line+"\n");
+            }
+            String response = output.toString();
+            br.close();
+            tv.append(response);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void doPostRequest(final String answer) throws JSONException {
